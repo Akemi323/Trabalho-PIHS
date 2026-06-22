@@ -24,6 +24,9 @@ msg_res_l = . - msg_res
 msg_cont:   .string "Continuar? (s/n): "
 msg_cont_l = . - msg_cont
 
+msg_erro_op:  .string "Erro: operador invalido\n"
+msg_erro_op_l = . - msg_erro_op
+
 msg_erro_div:  .string "Erro: divisao por zero\n"
 msg_erro_div_l = . - msg_erro_div
 
@@ -48,7 +51,8 @@ msg_nl_l = . - msg_nl
 # Seção de dados não inicializados 
 .section .bss
 
-buf_in:     .space 64       # buffer de entrada geral
+buf_op1:     .space 64       # buffer de entrada operador 1
+buf_op2: .space 64
 buf_out:    .space 64       # buffer de saída (resultado convertido)
 operador:   .space 4        # char do operador
 
@@ -64,7 +68,6 @@ _start:
     movq $0,        %rdi
     syscall
 
-
 # ============================================================
 # loop_principal: 
 # ============================================================
@@ -75,10 +78,79 @@ loop_principal:
 
 .Lloop:
     # Pedir e ler primeiro operando 
+    movq $msg_op1, %rsi
+    movq $msg_op1_l, %rdx
+    call imprimir_string
+
+    movq $buf_op1, %rsi
+    movq $64, %rdx
+    call ler_teclado
+
     # Pedir e ler operador
+    movq $msg_oper, %rsi
+    movq $msg_oper_l, %rdx
+    call imprimir_string
+
+    movq $operador, %rsi
+    movq $4, %rdx
+    call ler_teclado
+
     # Verificar se é operação unária ou binária
-    # Unárias: !, i, r, p -  não lê segundo operando
+    movb operador, %al
+
+    cmpb $'!', %al
+    je .Lpular_op2
+    
+    cmpb $'i', %al
+    je .Lpular_op2
+
+    cmpb $'r', %al
+    je .Lpular_op2
+
+    cmpb $'p', %al
+    je .Lpular_op2
+
+    cmpb $'+', %al
+    je .Ller_op2
+
+    cmpb $'-', %al
+    je .Ller_op2
+
+    cmpb $'*', %al
+    je .Ller_op2
+    
+    cmpb $'/', %al
+    je .Ller_op2
+
+    cmpb $'^', %al
+    je .Ller_op2
+
+    cmpb $'c', %al
+    je .Ller_op2
+
+    cmpb $'a', %al
+    je .Ller_op2
+    
+    cmpb $'l', %al
+    je .Ller_op2
+
+    movq $msg_erro_op, %rsi
+    movq $msg_erro_op_l, %rdx
+    call imprimir_string
+    jmp .Lloop
+
     # (se binária) Pedir e ler segundo operando
+.Ller_op2:
+    movq $msg_op2, %rsi
+    movq $msg_op2_l, %rdx
+    call imprimir_string
+
+    movq $buf_op2, %rsi
+    movq $64, %rdx
+    call ler_teclado
+
+    # Unárias: !, i, r, p -  não lê segundo operando
+.Lpular_op2:    
 
     # Executar a operação 
     call executar_operacao
@@ -87,11 +159,22 @@ loop_principal:
     call exibir_resultado
 
     # Perguntar se continua
+    movq $msg_cont, %rsi
+    movq $msg_cont_l, %rdx
+    call imprimir_string
+
+    movq $buf_op1, %rsi
+    movq $64, %rdx
+    call ler_teclado
+
+    movb buf_op1, %al
+
     # se sim, jmp .Lloop
+    cmpb $'s', %al
+    je .Lloop
 
     popq %rbp
     ret
-
 
 # ============================================================
 # ler_operando:
@@ -101,10 +184,26 @@ ler_operando:
     movq  %rsp, %rbp
 
     # Tem q fazer coisa
+    movq $0, %rax
+    movq $0, %rcx
 
+.Ller_digito:
+    movb (%rsi), %cl 
+
+    cmpb $10, %cl
+    je .Lfim_leitura
+
+    subb $'0', %cl
+    imulq $10, %rax
+    addq %rcx, %rax
+
+    incq %rsi
+
+    jmp .Ller_digito
+
+.Lfim_leitura:
     popq %rbp
     ret
-
 
 # ============================================================
 # exibir_resultado: 
@@ -114,10 +213,42 @@ exibir_resultado:
     movq  %rsp, %rbp
 
     # tem q fazer coisa
+    movq $10, %r8
+
+    movq $buf_out, %rdi
+    addq $63, %rdi
+    movb $10, (%rdi)
+
+.Lconverter_digito:
+    cqo
+    idivq %r8
+
+    addb $'0', %dl
+
+    decq %rdi
+    movb %dl, (%rdi)
+
+    cmpq $0, %rax
+    jne .Lconverter_digito
+
+    pushq %rdi
+
+    movq $msg_res, %rsi
+    movq $msg_res_l, %rdx
+    call imprimir_string
+
+    popq %rdi
+
+    movq %rdi, %rsi
+    
+    movq $buf_out, %rdx
+    addq $64, %rdx
+    subq %rsi, %rdx
+
+    call imprimir_string
 
     popq %rbp
     ret
-
 
 # ============================================================
 # executar_operacao: 
@@ -164,24 +295,70 @@ executar_operacao:
     cmpb $'p', %al
     je   .Lop_primo
 
-    jmp  .Lop_fim   # operador desconhecido
-
 # Operações binárias
 .Lop_soma:
     #fazer aq
+    movq $buf_op1, %rsi
+    call ler_operando
+    movq %rax,  %r8
+
+    movq $buf_op2, %rsi
+    call ler_operando
+
+    addq %r8, %rax
+
     jmp .Lop_fim
 
 .Lop_sub:
     #fazer aq
+    movq $buf_op2, %rsi
+    call ler_operando
+    movq %rax,  %r8
+
+    movq $buf_op1, %rsi
+    call ler_operando
+
+    subq %r8, %rax
+
     jmp .Lop_fim
 
 .Lop_mul:
     #fazer aq
+    movq $buf_op1, %rsi
+    call ler_operando
+    movq %rax,  %r8
+
+    movq $buf_op2, %rsi
+    call ler_operando
+
+    imulq %r8, %rax
+
     jmp .Lop_fim
 
 .Lop_div:
     # fazer aq
+    movq $buf_op2, %rsi
+    call ler_operando
+    movq %rax, %r8
+
+    movq $buf_op1, %rsi
+    call ler_operando
+
+    cmpq $0, %r8
+    je .Lerro_div
+
+    cqo
+
+    idivq %r8
+
     jmp .Lop_fim
+
+.Lerro_div:
+    movq $msg_erro_div, %rsi
+    movq $msg_erro_div_l, %rdx
+    call imprimir_string
+
+    jmp .Lloop
 
 .Lop_pow:
     # fazer
@@ -219,7 +396,6 @@ executar_operacao:
     popq %rbp
     ret
 
-
 # ============================================================
 # Procedimento auxiliar: imprimir_string
 # Entrada: %rsi = endereço da string, %rdx = tamanho
@@ -232,3 +408,8 @@ imprimir_string:
     syscall
     ret
 
+ler_teclado:
+    movq $SYS_READ, %rax
+    movq $STDIN, %rdi
+    syscall
+    ret
