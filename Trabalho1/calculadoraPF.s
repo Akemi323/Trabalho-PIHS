@@ -188,12 +188,16 @@ ler_operando:
     movq $0, %rcx
     movq $0, %r8
     movq $0, %r9
+    movq $0, %r10
 
 .Ller_digito:
     movb (%rsi), %cl 
 
     cmpb $10, %cl
     je .Lfim_leitura
+
+    cmpb $'-', %cl
+    je .Lmarcar_negativo
 
     cmpb $'.', %cl
     je .Lmarcar_ponto 
@@ -222,12 +226,22 @@ ler_operando:
 
     jmp .Ller_digito
 
+.Lmarcar_negativo:
+    incq %rsi
+    incq %r10
+    jmp .Ller_digito
+
 .Lmarcar_ponto:
     incq %rsi
     incq %r9
     jmp .Ller_digito
 
 .Lfim_leitura:
+    cmpq $1, %r10
+    jne .Lfim_ret
+    negq %rax
+
+.Lfim_ret:
     popq %rbp
     ret
 
@@ -265,20 +279,17 @@ exibir_resultado:
     
     xorpd %xmm1, %xmm1
     ucomisd %xmm1, %xmm0
-    jae .Lnum_positivo         # Se for positivo (>= 0), pula o sinal
+    jae .Lnum_positivo
 
     movq $msg_sinal_menos, %rsi
     movq $1, %rdx
     call imprimir_string
 
-    # Transforma o %xmm0 em positivo (0.0 - número_negativo = número_positivo)
     subsd %xmm0, %xmm1
     movsd %xmm1, %xmm0
 
 .Lnum_positivo:
-
     cvttsd2si %xmm0, %rax 
-
     movq %rax, %r12
 
 .print_numero:
@@ -310,28 +321,27 @@ exibir_resultado:
 
     movq $4, %r13
 
-.Lloop_aa:
+.Limprime_decimal:
     mulsd const_dez(%rip), %xmm0
     cvttsd2si %xmm0, %rax
     
-    cvtsi2sd %rax, %xmm1      # %xmm1 = 3.0
+    cvtsi2sd %rax, %xmm1
     subsd %xmm1, %xmm0
 
-    addb $'0', %al            # Transforma o inteiro 3 no caractere '3'
+    addb $'0', %al
     movb %al, buf_out(%rip)
-
     
-    movq $buf_out, %rsi       # %rsi = Onde está o caractere
-    movq $1, %rdx             # %rdx = Tamanho (1 byte)
+    movq $buf_out, %rsi
+    movq $1, %rdx
     call imprimir_string
 
-    decq %r13
+    decq %r13 
 
     xorpd %xmm4, %xmm4
     ucomisd %xmm4, %xmm0
     je .Lfim_deci
 
-    jnz .Lloop_aa
+    jnz .Limprime_decimal
 
 .Lfim_deci:
     movq $msg_nl, %rsi
@@ -345,7 +355,7 @@ executar_operacao:
     pushq %rbp
     movq  %rsp, %rbp
 
-    movzbq operador(%rip), %rax   # carrega char do operador
+    movzbq operador(%rip), %rax
 
     cmpb $'+', %al
     je   .Lop_soma
@@ -493,14 +503,22 @@ executar_operacao:
     cvttsd2si %xmm0, %rax
     movq %rax, %rbx #leu n
 
+    cvtsi2sd %rbx, %xmm1
+    ucomisd %xmm1, %xmm0
+    jne .Lerro_fat
+
+    cmpq $0, %rbx
+    jl .Lerro_fat
+
     movq $buf_op2, %rsi
     call ler_operando
     call converter_para_float
     cvttsd2si %xmm0, %rax
     movq %rax, %r12 #leu r
 
-    cmpq $0, %rbx
-    jl .Lerro_fat
+    cvtsi2sd %r12, %xmm1
+    ucomisd %xmm1, %xmm0
+    jne .Lerro_fat
 
     cmpq $0, %r12
     jl .Lerro_fat
@@ -532,16 +550,14 @@ executar_operacao:
     imulq %r12, %r13
 
     movq %rbx, %rax
-
     cqo
-
     idivq %r13
 
     popq %r13
     popq %r12
     popq %rbx
 
-    cvtsi2sd %rax, %xmm0  # Converte o resultado inteiro de %rax para o float %xmm0
+    cvtsi2sd %rax, %xmm0
     jmp .Lop_fim
 
 .Lop_arr:
@@ -554,13 +570,21 @@ executar_operacao:
     cvttsd2si %xmm0, %rax
     movq %rax, %rbx
 
+    cvtsi2sd %rbx, %xmm1 
+    ucomisd %xmm1, %xmm0
+    jne .Lerro_fat
+
+    cmpq $0, %rbx
+    jl .Lerro_fat
+
     movq $buf_op2, %rsi
     call ler_operando
     call converter_para_float
     cvttsd2si %xmm0, %rax
 
-    cmpq $0, %rbx
-    jl .Lerro_fat
+    cvtsi2sd %rax, %xmm1
+    ucomisd %xmm1, %xmm0
+    jne .Lerro_fat
 
     cmpq $0, %rax
     jl .Lerro_fat
@@ -584,15 +608,13 @@ executar_operacao:
     movq %rax, %r12 
 
     movq %rbx, %rax 
-
     cqo
-
     idivq %r12
 
     popq %r12
     popq %rbx
 
-    cvtsi2sd %rax, %xmm0  # Converte o resultado inteiro de %rax para o float %xmm0
+    cvtsi2sd %rax, %xmm0
     jmp .Lop_fim
 
 .Lerro_num_menor:
@@ -607,8 +629,11 @@ executar_operacao:
     call ler_operando
     call converter_para_float
 
-    
     cvttsd2si %xmm0, %rax
+
+    cvtsi2sd %rax, %xmm1
+    ucomisd %xmm1, %xmm0
+    jne .Lerro_fat
 
     cmpq $0, %rax
     jle .Lerro_fat
@@ -617,7 +642,7 @@ executar_operacao:
     call calcular_fatorial
     cvttsd2si %xmm0, %rax
 
-
+    cvtsi2sd %rax, %xmm0
     jmp .Lop_fim
 
 .Lerro_fat:
@@ -687,7 +712,7 @@ executar_operacao:
 
     xorpd %xmm2, %xmm2
     ucomisd %xmm2, %xmm0
-    jbe .Llog_erro #jump if below -> pula se for abaixo, pq dá pra fazer log com num tipo 0.5, só nao pode ser menor que zero
+    jbe .Llog_erro
 
     ucomisd const_um(%rip), %xmm0
     je .Llog_erro
@@ -781,8 +806,7 @@ executar_operacao:
 # ---------------------------------------
 imprimir_string:
     movq $SYS_WRITE, %rax
-    movq $STDOUT,    %rdi
-    # %rsi e %rdx já devem estar configurados pelo chamador
+    movq $STDOUT, %rdi
     syscall
     ret
 
@@ -811,7 +835,6 @@ calcular_fatorial:
 
 .Lfim_fat:
     ret
-
 
 log:
     subq $8, %rsp
