@@ -15,6 +15,9 @@ Calculadora implementada em linguagem assembly x86-64 com sintaxe AT&T (GAS), se
 
 Trabalho 2 da disciplina:
 
+Armazenamento de funções
+Passagem dos parâmetros linha por linha
+
 Foi escolhido a realização de ambas as partes sem o uso da Libc, considerando que o trabalho 2 não permitiria esse uso
 
 ---
@@ -46,21 +49,6 @@ Foi escolhido a realização de ambas as partes sem o uso da Libc, considerando 
 - **Raiz quadrada:** informa erro se o operando for negativo.
 - **Inverso:** informa erro se o operando for zero.
 - **Logaritmo:** informa erro se o logaritmando for ≤ 0 ou se a base for ≤ 0 ou igual a 1.
-
----
-
-## Requisitos
-
-- Linux x86-64
-- GAS (GNU Assembler) — pacote `binutils`
-- Linker `ld`
-
-Para verificar se estão instalados:
-
-```bash
-as --version
-ld --version
-```
 
 ---
 
