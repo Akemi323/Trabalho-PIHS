@@ -1,5 +1,3 @@
-
-# Constantes de syscall (Linux x86-64)
 .equ SYS_READ,   0
 .equ SYS_WRITE,  1
 .equ SYS_EXIT,   60
@@ -48,13 +46,15 @@ msg_erro_ord_l = . - msg_erro_ord
 msg_nl:     .string "\n"
 msg_nl_l = . - msg_nl
 
-# Seção de dados não inicializados 
+msg_sinal_menos: .ascii "-"
+
+# Seção de dados não inicializados
 .section .bss
 
-buf_op1:     .space 64       # buffer de entrada operador 1
+buf_op1: .space 64       # buffer de entrada operador 1
 buf_op2: .space 64
-buf_out:    .space 64       # buffer de saída (resultado convertido)
-operador:   .space 4        # char do operador
+buf_out: .space 64       # buffer de saída (resultado convertido)
+operador: .space 4        # char do operador
 
 # Seção de código 
 .section .text
@@ -67,10 +67,6 @@ _start:
     movq $SYS_EXIT, %rax
     movq $0,        %rdi
     syscall
-
-# ============================================================
-# loop_principal: 
-# ============================================================
 
 loop_principal:
     pushq %rbp
@@ -176,9 +172,6 @@ loop_principal:
     popq %rbp
     ret
 
-# ============================================================
-# ler_operando:
-# ============================================================
 ler_operando:
     pushq %rbp
     movq  %rsp, %rbp
@@ -205,16 +198,33 @@ ler_operando:
     popq %rbp
     ret
 
-# ============================================================
-# exibir_resultado: 
-# ============================================================
 exibir_resultado:
+
+    pushq %rax
+
+    movq $msg_res, %rsi
+    movq $msg_res_l, %rdx
+    call imprimir_string
+
+    popq %rax
+
+    cmpq $0, %rax
+    jge .print_numero
+
+    pushq %rax
+
+    movq $msg_sinal_menos, %rsi
+    movq $1, %rdx
+    call imprimir_string
+
+    popq %rax
+    negq %rax
+
+.print_numero:
     pushq %rbp
     movq  %rsp, %rbp
-
     # tem q fazer coisa
     movq $10, %r8
-
     movq $buf_out, %rdi
     addq $63, %rdi
     movb $10, (%rdi)
@@ -231,14 +241,6 @@ exibir_resultado:
     cmpq $0, %rax
     jne .Lconverter_digito
 
-    pushq %rdi
-
-    movq $msg_res, %rsi
-    movq $msg_res_l, %rdx
-    call imprimir_string
-
-    popq %rdi
-
     movq %rdi, %rsi
     
     movq $buf_out, %rdx
@@ -250,9 +252,6 @@ exibir_resultado:
     popq %rbp
     ret
 
-# ============================================================
-# executar_operacao: 
-# ============================================================
 executar_operacao:
     pushq %rbp
     movq  %rsp, %rbp
@@ -297,7 +296,6 @@ executar_operacao:
 
 # Operações binárias
 .Lop_soma:
-    #fazer aq
     movq $buf_op1, %rsi
     call ler_operando
     movq %rax,  %r8
@@ -310,7 +308,6 @@ executar_operacao:
     jmp .Lop_fim
 
 .Lop_sub:
-    #fazer aq
     movq $buf_op2, %rsi
     call ler_operando
     movq %rax,  %r8
@@ -323,7 +320,6 @@ executar_operacao:
     jmp .Lop_fim
 
 .Lop_mul:
-    #fazer aq
     movq $buf_op1, %rsi
     call ler_operando
     movq %rax,  %r8
@@ -336,7 +332,6 @@ executar_operacao:
     jmp .Lop_fim
 
 .Lop_div:
-    # fazer aq
     movq $buf_op2, %rsi
     call ler_operando
     movq %rax, %r8
@@ -361,36 +356,290 @@ executar_operacao:
     jmp .Lloop
 
 .Lop_pow:
-    # fazer
+    movq $buf_op1, %rsi
+    call ler_operando
+    movq %rax, %r8
+
+    movq $buf_op2, %rsi
+    call ler_operando
+    movq %rax, %rcx
+
+    movq $1, %rax #acumulador
+
+    cmpq $0, %rcx
+    je .Lfim_da_potencia
+
+.Lloop_pow:
+    imulq %r8, %rax
+    decq %rcx
+
+    cmp $0, %rcx
+    jne .Lloop_pow
+
+.Lfim_da_potencia:
     jmp .Lop_fim
 
 .Lop_comb:
     # fazer aq
+    #n! / r! * (n - r)!
+
+    pushq %rbx
+    pushq %r12
+    pushq %r13
+
+    movq $buf_op1, %rsi
+    call ler_operando
+    movq %rax, %rbx #leu n
+
+    movq $buf_op2, %rsi
+    call ler_operando
+    movq %rax, %r12 #leu r
+
+    cmpq $0, %rbx
+    jl .Lerro_fat
+
+    cmpq $0, %r12
+    jl .Lerro_fat
+
+    cmpq %r12, %rax
+    jl .Lerro_num_menor
+
+    movq %rbx, %r13
+    subq %r12, %r13
+    
+    movq %rbx, %rax
+    call calcular_fatorial
+    movq %rax, %rbx
+    
+    movq %r12, %rax
+    call calcular_fatorial
+    movq %rax, %r12
+
+    movq %r13, %rax
+    call calcular_fatorial
+    movq %rax, %r13
+
+    imulq %r12, %r13
+
+    movq %rbx, %rax
+
+    cqo
+
+    idivq %r13
+
+    popq %r13
+    popq %r12
+    popq %rbx
+
     jmp .Lop_fim
 
 .Lop_arr:
-    # fazer aq
+    pushq %rbx
+    pushq %r12
+
+    movq $buf_op1, %rsi
+    call ler_operando
+    movq %rax, %rbx
+
+    movq $buf_op2, %rsi
+    call ler_operando
+
+    cmpq $0, %rbx
+    jle .Lerro_fat
+
+    cmpq $0, %rax
+    jle .Lerro_fat
+
+    cmpq %rax, %rbx
+    jl .Lerro_num_menor
+
+    movq %rbx, %r12
+    subq %rax, %r12 
+
+    movq %rbx, %rax
+    call calcular_fatorial
+    movq %rax, %rbx 
+
+    movq %r12, %rax 
+    call calcular_fatorial 
+    movq %rax, %r12 
+
+    movq %rbx, %rax 
+
+    cqo
+
+    idivq %r12
+
+    popq %r12
+    popq %rbx
+
     jmp .Lop_fim
+
+.Lerro_num_menor:
+    movq $msg_erro_ord, %rsi
+    movq $msg_erro_ord_l, %rdx
+    call imprimir_string
+
+    jmp .Lloop
 
 .Lop_fat:
-    # fazer aq
+    movq $buf_op1, %rsi
+    call ler_operando
+
+    cmpq $0, %rax
+    jl .Lerro_fat
+
+    call calcular_fatorial
+
     jmp .Lop_fim
+
+.Lerro_fat:
+    movq $msg_erro_neg, %rsi
+    movq $msg_erro_neg_l, %rdx 
+    call imprimir_string
+
+    jmp .Lloop
 
 .Lop_inv:
-    # fazer aq
+    movq $buf_op1, %rsi
+    call ler_operando
+    movq %rax, %r8
+    movq $1, %rax
+
+    cmpq $0, %r8
+    je .Lerro_inv
+    
+    cqo
+
+    idivq %r8
+
     jmp .Lop_fim
+
+.Lerro_inv:
+    movq $msg_erro_inv, %rsi
+    movq $msg_erro_inv_l, %rdx
+    call imprimir_string
+
+    jmp .Lloop
 
 .Lop_sqrt:
-    # fazer aq
+    movq $buf_op1, %rsi
+    call ler_operando
+
+    cmpq $0, %rax
+    jl .Lsqrt_erro 
+    
+    call calcular_raiz
+
     jmp .Lop_fim
+
+.Lsqrt_erro:
+    movq $msg_erro_sqrt, %rsi
+    movq $msg_erro_sqrt_l, %rdx
+    call imprimir_string
+
+    jmp .Lloop
 
 .Lop_log:
-    # fazer aq
+    movq $buf_op2, %rsi
+    call ler_operando
+    
+    cmpq $1, %rax
+    jle .Llog_erro
+
+    movq %rax, %r9
+
+    movq $buf_op1, %rsi
+    call ler_operando
+
+    cmpq $0, %rax
+    jle .Llog_erro
+
+    xorq %r8, %r8
+
+.Llog_loop:
+    cmpq %r9, %rax
+    jl .Llog_fim
+
+    cqo
+
+    idivq %r9
+    addq $1, %r8
+    jmp .Llog_loop
+
+.Llog_fim:
+    movq %r8, %rax
     jmp .Lop_fim
 
+.Llog_erro:
+    movq $msg_erro_log, %rsi
+    movq $msg_erro_log_l, %rdx
+    call imprimir_string
+
+    jmp .Lloop
+
 .Lop_primo:
-    # fazer aq
-    jmp .Lop_fim
+ #Primeiro, vc vê se é 1 ou 2
+ #pq se for é primo
+ #dps, vc começa uma contagem em 2
+ #ai vc vai tentando dividir o num por esse valor e vê se dá 0 no resto (%rdx)
+ #ai se der zero, você sai do loop, e incrementa +1, aí tenta de novo dividir tudo
+ #ai se todas as divisões não deram resto 0, significa que é o número primo mais próximo
+ #10
+ # 10/2 %rdx = 0? se sim, já não é primo
+ # 10/3
+ # 10/4
+ # ...
+ #11
+ #11/2
+ #...
+ #rdx ficou zero? não, então 11 é o primo mais próximo
+ # Q tem todos os operadores até a raiz mais próxima dele
+ # Se vc tem 10
+ # 3
+ #10/2
+ #10/3
+ #1. verificar se o número é par e maior que 2: se for já incrementa 1 e testar
+ #2. depois, incrementar de 2 em 2, porque aí vai testar sempre os ímpares só
+
+    movq $buf_op1, %rsi
+    call ler_operando
+    
+    cmpq $2, %rax  
+    jle .Lop_fim 
+
+    movq %rax, %rcx
+
+.Lprimo_loop:
+
+    movq $2, %r8 
+
+.Lprimo_divisor:
+
+    movq %r8, %rax  
+    imulq %r8, %rax 
+
+    cmpq %rcx, %rax
+    jg .Lprimo_fim
+
+    movq %rcx, %rax
+    cqo
+    idivq %r8
+
+    cmpq $0, %rdx
+    je .Lprimo_nao
+    
+    addq $1, %r8
+    jmp  .Lprimo_divisor
+
+.Lprimo_nao:
+
+    incq %rcx
+    jmp .Lprimo_loop
+
+.Lprimo_fim:
+
+    movq %rcx, %rax
 
 .Lop_fim:
     popq %rbp
@@ -413,3 +662,43 @@ ler_teclado:
     movq $STDIN, %rdi
     syscall
     ret
+
+calcular_fatorial:
+    movq %rax, %rcx
+    movq $1, %rax
+
+    cmpq $1, %rcx
+    jle .Lfim_fat
+
+.Lfat:
+    imulq %rcx, %rax
+    decq %rcx
+    cmpq $1, %rcx
+    jne .Lfat
+
+.Lfim_fat:
+    ret
+
+calcular_raiz:
+
+    movq %rax, %rcx
+    
+    xorq %r8, %r8
+    movq $1, %r9
+    
+.Lsqrt_loop:
+
+    cmpq %r9, %rcx
+    jl .Lsqrt_fim
+
+    subq %r9, %rcx
+    addq $2, %r9
+
+    addq $1, %r8
+    jmp .Lsqrt_loop
+
+.Lsqrt_fim:
+
+    movq %r8, %rax
+    ret
+    
