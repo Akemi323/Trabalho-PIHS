@@ -65,6 +65,49 @@ operador: .space 4        # char do operador
 
 # Seção de código 
 .section .text
+
+# Símbolos que vêm do arquivo operacoes.s
+.extern Lop_soma
+.extern Lop_sub
+.extern Lop_mul
+.extern Lop_div
+.extern Lop_pow
+.extern Lop_comb
+.extern Lop_arr
+.extern Lop_fat
+.extern Lop_inv
+.extern Lop_sqrt
+.extern Lop_log
+.extern Lop_primo
+.extern calcular_fatorial
+.extern log
+
+# Exportando variáveis, constantes e funções para o operacoes.s
+.global buf_op1
+.global buf_op2
+.global operador
+.global imprimir_string
+.global ler_operando
+.global converter_para_float
+.global msg_res
+.global msg_res_l
+.global msg_erro_div
+.global msg_erro_div_l
+.global msg_erro_neg
+.global msg_erro_neg_l
+.global msg_erro_sqrt
+.global msg_erro_sqrt_l
+.global msg_erro_inv
+.global msg_erro_inv_l
+.global msg_erro_log
+.global msg_erro_log_l
+.global msg_erro_ord
+.global msg_erro_ord_l
+.global msg_ponto
+.global const_dez
+.global const_um
+.global const_arred
+.global Lloop
 .global _start
 
 _start:
@@ -79,7 +122,7 @@ loop_principal:
     pushq %rbp
     movq  %rsp, %rbp
 
-.Lloop:
+Lloop:
     # Pedir e ler primeiro operando 
     movq $msg_op1, %rsi
     movq $msg_op1_l, %rdx
@@ -102,48 +145,48 @@ loop_principal:
     movb operador, %al
 
     cmpb $'!', %al
-    je .Lpular_op2
+    je Lpular_op2
     
     cmpb $'i', %al
-    je .Lpular_op2
+    je Lpular_op2
 
     cmpb $'r', %al
-    je .Lpular_op2
+    je Lpular_op2
 
     cmpb $'p', %al
-    je .Lpular_op2
+    je Lpular_op2
 
     cmpb $'+', %al
-    je .Ller_op2
+    je Ller_op2
 
     cmpb $'-', %al
-    je .Ller_op2
+    je Ller_op2
 
     cmpb $'*', %al
-    je .Ller_op2
+    je Ller_op2
     
     cmpb $'/', %al
-    je .Ller_op2
+    je Ller_op2
 
     cmpb $'^', %al
-    je .Ller_op2
+    je Ller_op2
 
     cmpb $'c', %al
-    je .Ller_op2
+    je Ller_op2
 
     cmpb $'a', %al
-    je .Ller_op2
+    je Ller_op2
     
     cmpb $'l', %al
-    je .Ller_op2
+    je Ller_op2
 
     movq $msg_erro_op, %rsi
     movq $msg_erro_op_l, %rdx
     call imprimir_string
-    jmp .Lloop
+    jmp Lloop
 
     # (se binária) Pedir e ler segundo operando
-.Ller_op2:
+Ller_op2:
     movq $msg_op2, %rsi
     movq $msg_op2_l, %rdx
     call imprimir_string
@@ -153,7 +196,7 @@ loop_principal:
     call ler_teclado
 
     # Unárias: !, i, r, p -  não lê segundo operando
-.Lpular_op2:    
+Lpular_op2:    
 
     # Executar a operação 
     call executar_operacao
@@ -172,9 +215,9 @@ loop_principal:
 
     movb buf_op1, %al
 
-    # se sim, jmp .Lloop
+    # se sim, jmp Lloop
     cmpb $'s', %al
-    je .Lloop
+    je Lloop
 
     popq %rbp
     ret
@@ -183,23 +226,26 @@ ler_operando:
     pushq %rbp
     movq  %rsp, %rbp
 
-    # Tem q fazer coisa
     movq $0, %rax
     movq $0, %rcx
     movq $0, %r8
     movq $0, %r9
+    movq $0, %r10   
 
-.Ller_digito:
+Ller_digito:
     movb (%rsi), %cl 
 
     cmpb $10, %cl
-    je .Lfim_leitura
+    je Lfim_leitura
+
+    cmpb $'-', %cl
+    je Lmarcar_negativo
 
     cmpb $'.', %cl
-    je .Lmarcar_ponto 
+    je Lmarcar_ponto 
 
     cmpq $1, %r9
-    je .Lcontar_casa
+    je Lcontar_casa
 
     subb $'0', %cl
 
@@ -208,9 +254,9 @@ ler_operando:
 
     incq %rsi
 
-    jmp .Ller_digito
+    jmp Ller_digito
 
-.Lcontar_casa:
+Lcontar_casa:
     incq %r8
     
     subb $'0', %cl
@@ -220,37 +266,45 @@ ler_operando:
 
     incq %rsi
 
-    jmp .Ller_digito
+    jmp Ller_digito
 
-.Lmarcar_ponto:
+Lmarcar_ponto:
     incq %rsi
     incq %r9
-    jmp .Ller_digito
+    jmp Ller_digito
 
-.Lfim_leitura:
+Lmarcar_negativo:
+    incq %rsi
+    incq %r10
+    jmp Ller_digito
+
+Lfim_leitura:
+    cmpq $1, %r10
+    jne Lfim_ret
+    negq %rax
+
+Lfim_ret:
     popq %rbp
     ret
 
 converter_para_float:
-
     cvtsi2sd %rax, %xmm0
     movsd const_um(%rip), %xmm3
     movsd const_dez(%rip), %xmm2
 
     cmpq $0, %r8
-    je .Lconverte_fim
+    je Lconverte_fim
 
-.Lmultiplica_acc:
-
+Lmultiplica_acc:
     mulsd %xmm2, %xmm3
     
     decq %r8
     cmpq $0, %r8
-    jne .Lmultiplica_acc
+    jne Lmultiplica_acc
     
     divsd %xmm3, %xmm0
 
-.Lconverte_fim:
+Lconverte_fim:
     ret
 
 exibir_resultado:
@@ -265,7 +319,7 @@ exibir_resultado:
     
     xorpd %xmm1, %xmm1
     ucomisd %xmm1, %xmm0
-    jae .Lnum_positivo         # Se for positivo (>= 0), pula o sinal
+    jae Lnum_positivo         # Se for positivo (>= 0), pula o sinal
 
     movq $msg_sinal_menos, %rsi
     movq $1, %rdx
@@ -275,25 +329,23 @@ exibir_resultado:
     subsd %xmm0, %xmm1
     movsd %xmm1, %xmm0
 
-.Lnum_positivo:
-
+Lnum_positivo:
     cvttsd2si %xmm0, %rax 
-
     movq %rax, %r12
 
-.print_numero:
+print_numero:
     movq $10, %r8
     movq $buf_out, %rdi
     addq $63, %rdi
 
-.Lconverter_digito:
+Lconverter_digito:
     cqo
     idivq %r8
     addb $'0', %dl
     decq %rdi
     movb %dl, (%rdi)
     cmpq $0, %rax
-    jne .Lconverter_digito
+    jne Lconverter_digito
 
     movq %rdi, %rsi
     movq $buf_out, %rdx
@@ -310,7 +362,7 @@ exibir_resultado:
 
     movq $4, %r13
 
-.Lloop_aa:
+Lloop_aa:
     mulsd const_dez(%rip), %xmm0
     cvttsd2si %xmm0, %rax
     
@@ -320,7 +372,6 @@ exibir_resultado:
     addb $'0', %al            # Transforma o inteiro 3 no caractere '3'
     movb %al, buf_out(%rip)
 
-    
     movq $buf_out, %rsi       # %rsi = Onde está o caractere
     movq $1, %rdx             # %rdx = Tamanho (1 byte)
     call imprimir_string
@@ -329,11 +380,11 @@ exibir_resultado:
 
     xorpd %xmm4, %xmm4
     ucomisd %xmm4, %xmm0
-    je .Lfim_deci
+    je Lfim_deci              # CORRIGIDO: Removido ponto de .Lfim_deci
 
-    jnz .Lloop_aa
+    jnz Lloop_aa              # CORRIGIDO: Removido ponto de .Lloop_aa
 
-.Lfim_deci:
+Lfim_deci:
     movq $msg_nl, %rsi
     movq $msg_nl_l, %rdx
     call imprimir_string
@@ -348,40 +399,40 @@ executar_operacao:
     movzbq operador(%rip), %rax   # carrega char do operador
 
     cmpb $'+', %al
-    je   .Lop_soma
+    je   Lop_soma
 
     cmpb $'-', %al
-    je   .Lop_sub
+    je   Lop_sub
 
     cmpb $'*', %al
-    je   .Lop_mul
+    je   Lop_mul
 
     cmpb $'/', %al
-    je   .Lop_div
+    je   Lop_div
 
     cmpb $'^', %al
-    je   .Lop_pow
+    je   Lop_pow
 
     cmpb $'c', %al
-    je   .Lop_comb
+    je   Lop_comb
 
     cmpb $'a', %al
-    je   .Lop_arr
+    je   Lop_arr
 
     cmpb $'!', %al
-    je   .Lop_fat
+    je   Lop_fat
 
     cmpb $'i', %al
-    je   .Lop_inv
+    je   Lop_inv
 
     cmpb $'r', %al
-    je   .Lop_sqrt
+    je   Lop_sqrt
 
     cmpb $'l', %al
-    je   .Lop_log
+    je   Lop_log
 
     cmpb $'p', %al
-    je   .Lop_primo
+    je   Lop_primo
 
 # ---------------------------------------
 imprimir_string:
@@ -396,4 +447,3 @@ ler_teclado:
     movq $STDIN, %rdi
     syscall
     ret
-
