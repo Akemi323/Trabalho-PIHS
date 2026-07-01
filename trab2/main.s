@@ -140,7 +140,7 @@ salvar_funcao:
     movq $buf_entrada, %rsi
     movb (%rsi), %al #le um byte
     movzbq %al, %rax #zerei o rax pra ficar so com o byte lido
-    #calcula o indice dela no vetor
+    #calcula o indice dela no vetor 
     subq $'a', %rax #fiz letra - a, pra achar a posicao do vetor
     imulq $20, %rax #cada parte do vetor tem 20 bytes, ai multiplica por 20
     addq $funcoes, %rax #pego endereco da funcao e somo com onde ta o rax pra aponta no lugar certo
@@ -163,14 +163,14 @@ salvar_funcao:
     #tenho q pega cada um dos caracter e salvar, p coloca no vetor
     # ex: f(x) = x + 5, ai eut to com x + 5
 .Lloop_copia:
-    movb (%rsi), %al #copiei o primeiro byte e coloquei no al
+    movb (%rsi), %al #copiei o primeiro byte e coloquei no al x + 5
 
     cmpb $10, %al # se for \n, ele da jump pro final do loop
     je .Lfim_loop_copia
 
     movb %al, (%rdi) #coloca o que tava em %al no endereco q ta rdi
-    incq %rsi #aumento um no rsi, que ta com a funcao
-    incq %rdi #aumento um no rdi, pra escreve na proxima parte da funcao
+    incq %rsi #aumento um no rsi, que ta com a funcao +5
+    incq %rdi #aumento um no rdi, pra escreve na proxima parte da funcao 
     jmp .Lloop_copia #continuo ate o \n
 
 .Lfim_loop_copia:
@@ -178,6 +178,62 @@ salvar_funcao:
     ret #retorno
     
 preparar_chamada:
+    movq $buf_entrada, %rsi
+
+    #tem q fazer um loop tem parenteses f(5) ou f
+.Lverifica_parent:
+    movb (%rsi), %al
+
+    cmpb $10, %al
+    je .Lsem_parent 
+
+    cmpb $0, %al
+    je .Lsem_parent 
+
+    cmpb $'(', %al
+    je .Lcom_parent
+
+    incq %rsi
+    jmp .Lverifica_parent
+    
+# aceitar só a
+.Lsem_parent:
+    movq $buf_entrada, %rsi
+    movb (%rsi), %al
+    movzbq %al, %rax
+    subq $'a', %rax
+    imulq $20, %rax
+    addq $funcoes, %rax
+    movq %rax, %rdi
+    
+    movq $buf_op1, %rcx
+.Lcopia_sem:
+    movb (%rdi), %al
+
+    cmpb $0, %al
+    je .Lfim_copia_sem
+
+    movb %al, (%rcx)
+    incq %rcx
+    incq %rdi
+    jmp .Lcopia_sem
+
+.Lfim_copia_sem:
+    movb $0, (%rcx)
+    movb $'+', operador(%rip)
+    movb $'0', buf_op2(%rip)
+    movb $0, buf_op2+1(%rip)
+    jmp .Lfinal_salva
+    
+.Lcom_parent:
+    # x + 5
+    # 5 + x
+    # x + x
+
+    #Primeiro ver se é numero ou variável
+    
+    
+    
     movq $buf_entrada, %rsi
     movb (%rsi), %al
     movzbq %al, %rax
@@ -187,9 +243,10 @@ preparar_chamada:
     movq %rax, %rdi
 
     movq $buf_entrada, %rsi
-
+#f(5)
+#f(a)
 .Lloop_acha_num:
-    movb (%rsi), %al
+    movb (%rsi), %al 
 
     cmpb $'(', %al
     je .Lacho_parenteses
@@ -222,7 +279,7 @@ preparar_chamada:
 
     incq %rdi
 
-    movq $buf_op2, %rcx
+    movq $buf_op2, %rcx 
 
 .Lcopia_num_dois:
     movb (%rdi), %al
