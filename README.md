@@ -107,3 +107,79 @@ Continuar? (s/n): n
 ---
 
 
+# Trabalho 2
+
+param:    1 byte   (ex: 'x')
+operador: 1 byte   (ex: '*')
+flag_esq: 1 byte   (0=número, 1=variável)
+val_esq:  8 bytes  (double ou código da letra)
+flag_dir: 1 byte   (0=número, 1=variável)
+val_dir:  8 bytes  (double ou código da letra)
+
+Fazer um vetor, que tem 26 funções (de A a Z)
+
+.bss
+funcoes: .space 520    # 26 funções * 20 bytes cada
+
+
+endereço = funcoes + (índice * 20) -> Para acessa a função
+
+Pra saber se é definir função ou puxar função, procura pelo igual
+
+achou = → é definição
+não achou = (chegou no \n) → é chamada
+
+movq $buf_entrada, %rsi
+movb (%rsi), %al        # nome: f
+movb 2(%rsi), %al       # parâmetro: x
+movb 5(%rsi), %al       # op. esquerdo: x
+movb 6(%rsi), %al       # operador: *
+movb 7(%rsi), %al       # op. direito: 3
+
+Pegar o índice de f no vetor
+Ler os campos armazenados
+Substituir o parâmetro pelo valor 3 onde aparecer
+Calcular o resultado
+
+1. lê f → pega entrada no vetor
+2. lê 3 → esse é o valor do parâmetro
+3. checa flag_esq:
+   - 0 → usa val_esq como está
+   - 1 → usa o valor 3 no lugar
+4. checa flag_dir:
+   - 0 → usa val_dir como está
+   - 1 → usa o valor 3 no lugar
+5. aplica o operador entre os dois valores
+6. imprime o resultado
+
+
+#1. Ler uma linha do teclado
+
+#2. Buscar '=' na linha
+   #- achou → é definição → chama função parsear_definicao
+   #- não achou → é chamada → chama função parsear_chamada
+
+#3. parsear_definicao:
+   #- extrai nome, parâmetro, op. esquerdo, operador, op. direito
+   #- calcula índice no vetor
+   #- armazena tudo no vetor
+
+#4. parsear_chamada:
+   #- extrai nome da função e valor passado
+   #- calcula índice no vetor
+   #- lê os campos armazenados
+   #- substitui parâmetro pelo valor onde flag=1
+   #- chama função calcular com os dois operandos e o operador
+   #- imprime o resultado
+
+#5. Perguntar se continua ou volta pro passo 1
+
+f(x)=x+3
+
+nome = f(x)
+op. esquerdo = x
+operando = +
+op. direita = 3
+
+f(x)
+

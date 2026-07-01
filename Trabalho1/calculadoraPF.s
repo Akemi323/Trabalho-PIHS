@@ -50,18 +50,22 @@ msg_ponto: .string "."
 
 msg_sinal_menos: .ascii "-"
 
-const_dez: .double 10.0
+.align 8 #o align garante que essas constantes estejam alinhadas em múltiplos de 8, não muda nada no código em si, mas otimiza o acesso a memoria
+const_dez: .double 10.0 
+.align 8 
 const_um: .double 1.0
+.align 8 
 const_dois: .double 2.0
+.align 8 
 const_arred: .double 0.99
 
 # Seção de dados não inicializados
 .section .bss
 
-buf_op1: .space 64       # buffer de entrada operador 1
+buf_op1: .space 64 # buffer de entrada operador 1
 buf_op2: .space 64
-buf_out: .space 64       # buffer de saída (resultado convertido)
-operador: .space 4        # char do operador
+buf_out: .space 64 # buffer de saída (resultado convertido)
+operador: .space 4 # char do operador
 
 # Seção de código 
 .section .text
@@ -99,7 +103,7 @@ loop_principal:
     call ler_teclado
 
     # Verificar se é operação unária ou binária
-    movb operador, %al
+    movb operador(%rip), %al
 
     cmpb $'!', %al
     je .Lpular_op2
@@ -170,7 +174,7 @@ loop_principal:
     movq $64, %rdx
     call ler_teclado
 
-    movb buf_op1, %al
+    movb buf_op1(%rip), %al
 
     # se sim, jmp .Lloop
     cmpb $'s', %al
@@ -183,7 +187,6 @@ ler_operando:
     pushq %rbp
     movq  %rsp, %rbp
 
-    # Tem q fazer coisa
     movq $0, %rax
     movq $0, %rcx
     movq $0, %r8
@@ -523,7 +526,7 @@ executar_operacao:
     cmpq $0, %r12
     jl .Lerro_fat
 
-    cmpq %r12, %rax
+    cmpq %r12, %rbx
     jl .Lerro_num_menor
 
     movq %rbx, %r13
@@ -636,7 +639,7 @@ executar_operacao:
     jne .Lerro_fat
 
     cmpq $0, %rax
-    jle .Lerro_fat
+    jl .Lerro_fat
 
     cvtsi2sd %rax, %xmm0
     call calcular_fatorial
@@ -700,8 +703,12 @@ executar_operacao:
     call ler_operando
     call converter_para_float
 
-    ucomisd const_um(%rip), %xmm0
+    xorpd %xmm2, %xmm2
+    ucomisd %xmm2, %xmm0
     jbe .Llog_erro
+
+    ucomisd const_um(%rip), %xmm0
+    je .Llog_erro
 
     call log #essa funcao devolve o ln
     movsd %xmm0, %xmm1
@@ -713,9 +720,6 @@ executar_operacao:
     xorpd %xmm2, %xmm2
     ucomisd %xmm2, %xmm0
     jbe .Llog_erro
-
-    ucomisd const_um(%rip), %xmm0
-    je .Llog_erro
     
     call log
     
