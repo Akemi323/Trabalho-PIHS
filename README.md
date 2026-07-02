@@ -4,23 +4,18 @@
 **Instituição:** Universidade Estadual de Maringá 
 **Dupla:**
 - Nome: Letícia Akemi Nakahati Vieira - RA: 140535
-- Nome: Pedro Henrique Pereira da Silva - RA: 
+- Nome: Pedro Henrique Pereira da Silva - RA: 139781
 
 ---
 
 ## Descrição
 
-Trabalho 1 da disciplina:
-Calculadora implementada em linguagem assembly x86-64 com sintaxe AT&T (GAS), sem uso da biblioteca C (libc). Toda a entrada e saída é feita diretamente via syscalls do Linux. O programa aceita operandos reais e realiza operações aritméticas, combinatórias e matemáticas, exibindo o resultado e perguntando se o usuário deseja continuar.
+**Trabalho 1 - Calculadora simples:** calculadora implementada em assembly x86-64 com sintaxe AT&T (GAS), sem uso da biblioteca C (libc). Toda a entrada e saída é feita diretamente via syscalls do Linux. O programa aceita operandos reais, realiza operações aritméticas, combinatórias e matemáticas, exibe o resultado e pergunta se o usuário deseja continuar.
 
-Trabalho 2 da disciplina:
-
-Armazenamento de funções
-Passagem dos parâmetros linha por linha
-
-Foi escolhido a realização de ambas as partes sem o uso da Libc, considerando que o trabalho 2 não permitiria esse uso
+**Trabalho 2 - Calculadora com funções:** extensão da calculadora que permite definir variáveis e funções com parâmetros em uma única linha. Suporta chamadas de função com números ou variáveis, consulta de variáveis e expressões mistas. Também implementado sem libc, utilizando apenas syscalls diretas.
 
 ---
+## Trabalho 1 - Calculadora
 
 ## Operações suportadas
 
@@ -55,13 +50,8 @@ Foi escolhido a realização de ambas as partes sem o uso da Libc, considerando 
 ## Como compilar e executar
 
 ```bash
-# Montar (assemblar)
 as -o calculadora.o calculadora.s
-
-# Linkar
 ld -o calculadora calculadora.o
-
-# Executar
 ./calculadora
 ```
 
@@ -107,79 +97,41 @@ Continuar? (s/n): n
 ---
 
 
-# Trabalho 2
+## Trabalho 2 - Calculadora com Funções
 
-param:    1 byte   (ex: 'x')
-operador: 1 byte   (ex: '*')
-flag_esq: 1 byte   (0=número, 1=variável)
-val_esq:  8 bytes  (double ou código da letra)
-flag_dir: 1 byte   (0=número, 1=variável)
-val_dir:  8 bytes  (double ou código da letra)
+### Como compilar e executar
 
-Fazer um vetor, que tem 26 funções (de A a Z)
+```bash
+as -o main.o main.s
+as -o operacoes.o operacoes.s
+ld -o programa main.o operacoes.o
+./programa
+```
 
-.bss
-funcoes: .space 520    # 26 funções * 20 bytes cada
+### Funcionalidades
 
+- Definição de variáveis: `a=8`
+- Definição de funções: `f(x)=x+3`, `f(x)=5+x`, `f(x)=x+x`
+- Chamada de função com número: `f(4)`
+- Chamada de função com variável: `f(a)`
+- Consulta de variável: `a`
+- Expressão mista: `a+b`, `a+f(10)`
+- Todas as operações do Trabalho 1
 
-endereço = funcoes + (índice * 20) -> Para acessa a função
+### Exemplos de uso
 
-Pra saber se é definir função ou puxar função, procura pelo igual
-
-achou = → é definição
-não achou = (chegou no \n) → é chamada
-
-movq $buf_entrada, %rsi
-movb (%rsi), %al        # nome: f
-movb 2(%rsi), %al       # parâmetro: x
-movb 5(%rsi), %al       # op. esquerdo: x
-movb 6(%rsi), %al       # operador: *
-movb 7(%rsi), %al       # op. direito: 3
-
-Pegar o índice de f no vetor
-Ler os campos armazenados
-Substituir o parâmetro pelo valor 3 onde aparecer
-Calcular o resultado
-
-1. lê f → pega entrada no vetor
-2. lê 3 → esse é o valor do parâmetro
-3. checa flag_esq:
-   - 0 → usa val_esq como está
-   - 1 → usa o valor 3 no lugar
-4. checa flag_dir:
-   - 0 → usa val_dir como está
-   - 1 → usa o valor 3 no lugar
-5. aplica o operador entre os dois valores
-6. imprime o resultado
-
-
-#1. Ler uma linha do teclado
-
-#2. Buscar '=' na linha
-   #- achou → é definição → chama função parsear_definicao
-   #- não achou → é chamada → chama função parsear_chamada
-
-#3. parsear_definicao:
-   #- extrai nome, parâmetro, op. esquerdo, operador, op. direito
-   #- calcula índice no vetor
-   #- armazena tudo no vetor
-
-#4. parsear_chamada:
-   #- extrai nome da função e valor passado
-   #- calcula índice no vetor
-   #- lê os campos armazenados
-   #- substitui parâmetro pelo valor onde flag=1
-   #- chama função calcular com os dois operandos e o operador
-   #- imprime o resultado
-
-#5. Perguntar se continua ou volta pro passo 1
-
-f(x)=x+3
-
-nome = f(x)
-op. esquerdo = x
-operando = +
-op. direita = 3
-
-f(x)
-
+```
+Digite a expressão: f(x)=x+3
+Continuar? (s/n): s
+Digite a expressão: f(4)
+Resultado: 7.0
+Continuar? (s/n): s
+Digite a expressão: a=8
+Continuar? (s/n): s
+Digite a expressão: f(a)
+Resultado: 11.0
+Continuar? (s/n): s
+Digite a expressão: a+f(10)
+Resultado: 21.0
+Continuar? (s/n): n
+```

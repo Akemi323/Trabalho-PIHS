@@ -6,7 +6,7 @@
 
 .section .rodata
 #verificar
-msg_entrada:       .string "Digite a expressão (ex: f(x)=x+3 ou f(5)): "
+msg_entrada:       .string "Digite a expressão sem espaço: "
 msg_entrada_l = . - msg_entrada
 
 msg_cont:         .string "Continuar? (s/n): "
@@ -60,47 +60,44 @@ loop_principal:
     movq  %rsp, %rbp
 
 .Lloop:
-    # imprimir msg entrada
     movq $msg_entrada, %rsi
     movq $msg_entrada_l, %rdx
     call imprimir_string
 
-    #lendo teclado
     movq $buf_entrada, %rsi
     movq $64, %rdx
     call ler_teclado
 
-    # busca o '=' na linha
+
     movq $buf_entrada, %rsi
 
 .Landa_string:
     movb (%rsi), %al
     cmpb $0, %al 
-    je .Lchamada #e o fim da string, e nao tem o =
+    je .Lchamada #é o fim da string, e nao tem o =
 
     cmpb $10, %al 
     je .Lchamada # deu \n e nao tem =
 
     cmpb $'=', %al
-    je .Ldefinicao # acho o igual
+    je .Ldefinicao # achou o igual
 
     incq %rsi
-    jmp .Landa_string #nao foi o fim e nao tem =,ai a gnt anda um p direita
+    jmp .Landa_string 
 
 .Ldefinicao:
     call salvar_funcao
-    #aqui a gnt tem q salva funcao
     jmp .Lperguntar_cont
 
 .Lchamada:
     call preparar_chamada
-    #aqui a gnt extrai os dados do vetor e preenche os buffers
-    cmpq $2, %rax
+
+    cmpq $2, %rax # o 2 é uma convenção pra já calculou, foi feito pra caso de operação mista
     je .Lja_calculou
     call executar_operacao
 
     cmpq $1, %rax
-    je .Lperguntar_cont #se tive dado erro pergunta de novo
+    je .Lperguntar_cont
 
     call exibir_resultado
 
@@ -111,12 +108,10 @@ loop_principal:
     jmp .Lperguntar_cont
     
 .Lperguntar_cont:
-    #imprime a pergunta de continua
     movq $msg_cont, %rsi
     movq $msg_cont_l, %rdx
     call imprimir_string
 
-    #le a resp do teclado
     movq $buf_entrada, %rsi
     movq $2, %rdx #le 2 bytes: caractere + /n
     call ler_teclado
@@ -148,23 +143,24 @@ ler_teclado:
     syscall
     ret
 
+#Salva uma definição no vetor funcoes, atualizando ele
+#Formato: byte 0 (letra do parâmetro) e o restante é a expressão
 salvar_funcao:
     pushq %rbp
     movq  %rsp, %rbp
-    #primeiro pega a letra da funcao
+    #primeiro pega a letra da função
     movq $buf_entrada, %rsi
-    movb (%rsi), %al #le um byte
-    movzbq %al, %rax #zerei o rax pra ficar so com o byte lido
-    #calcula o indice dela no vetor 
-    subq $'a', %rax #fiz letra - a, pra achar a posicao do vetor
-    imulq $20, %rax #cada parte do vetor tem 20 bytes, ai multiplica por 20
+    movb (%rsi), %al 
+    movzbq %al, %rax #zera o rax pra ficar so com o byte lido
+    #calcula o indice no vetor 
+    subq $'a', %rax #faz letra - a, pra achar a posicao do vetor
+    imulq $20, %rax #cada parte do vetor tem 20 bytes, então multiplica por 20
     addq $funcoes, %rax #pego endereco da funcao e somo com onde ta o rax pra aponta no lugar certo
     movq %rax, %rdi #troco rax por rdi pra guarda o endereco e poder usa zero
 
-    #achar o = da string
-    movq $buf_entrada, %rsi #li de novo o buf de entrada e guardei em rsi
+    movq $buf_entrada, %rsi
 
-    movb 1(%rsi), %al
+    movb 1(%rsi), %al #lê o segundo caractere para checar se a função tem ('(')
     cmpb $'(', %al
     je .Lgrava_parametro
 
@@ -180,42 +176,46 @@ salvar_funcao:
     incq %rdi
     
 .Lproc_op:
-    movb (%rsi), %al #peguei o byte e coloquei no al
+    movb (%rsi), %al 
 
-    cmpb $'=', %al #vi se o al é igual a =
-    je .Lacho_igual # acho o igual
+    cmpb $'=', %al 
+    je .Lacho_igual 
 
     incq %rsi #se nao for, eu incremento um e recomeço o loop
-    jmp .Lproc_op #nao foi o fim e nao tem =,ai a gnt anda um p direita
+    jmp .Lproc_op 
     
 .Lacho_igual:
     incq %rsi #passei do igual
-    #tenho q pega cada um dos caracter e salvar, p coloca no vetor
-    # ex: f(x) = x + 5, ai eut to com x + 5
+    
 .Lloop_copia:
-    movb (%rsi), %al #copiei o primeiro byte e coloquei no al x + 5
+    movb (%rsi), %al #copia o primeiro byte e coloca no al 
 
     cmpb $10, %al # se for \n, ele da jump pro final do loop
     je .Lfim_loop_copia
 
     movb %al, (%rdi) #coloca o que tava em %al no endereco q ta rdi
-    incq %rsi #aumento um no rsi, que ta com a funcao +5
-    incq %rdi #aumento um no rdi, pra escreve na proxima parte da funcao 
-    jmp .Lloop_copia #continuo ate o \n
+    incq %rsi
+    incq %rdi 
+    jmp .Lloop_copia
 
 .Lfim_loop_copia:
     movb $0, (%rdi) #coloco um \0 no final da funcao
     movq %rbp, %rsp
     popq %rbp
-    ret #retorno
-    
+    ret 
+
+#Recebe a entrada e coloca no lugar certo buf_op1 e buf_op2
+#trata 3 casos: 
+#variavel simples (como "a")
+#chamada de funcao (como "f(4)")
+#expressoes mistas (como "a+f(10)")   
 preparar_chamada:
     pushq %rbp
     movq  %rsp, %rbp
     movq $buf_entrada, %rsi
     movq %rsi, %rdx 
 
-    #tem q fazer um loop tem parenteses f(5) ou f
+    #f(5) ou f
 .Lverifica_parent:
     movb (%rsi), %al
 
@@ -272,29 +272,22 @@ preparar_chamada:
 
 .Lfim_copia_sem:
     movb $0, (%rcx)
-    movb $'+', operador(%rip)
+    movb $'+', operador(%rip) #valor + 0 = valor
     movb $'0', buf_op2(%rip)
     movb $0, buf_op2+1(%rip)
     jmp .Lfinal_salva
     
 .Lcom_parent:
-    # x + 5
-    # 5 + x
-    # x + x
-
-    #Primeiro ver se é numero ou variável
-
     movq $buf_entrada, %rsi
     movb (%rsi), %al
     movzbq %al, %rax
-    subq $'a', %rax #achei a pos do vetor
+    subq $'a', %rax
     imulq $20, %rax
     addq $funcoes, %rax
     movq %rax, %rdi
 
     movq $buf_entrada, %rsi
-#f(5)
-#f(a)
+
 .Lloop_acha_num:
     movb (%rsi), %al 
 
@@ -305,7 +298,7 @@ preparar_chamada:
     jmp .Lloop_acha_num
     
 .Lacho_parenteses:
-    movq $buf_out, %rcx
+    movq $buf_out, %rcx #vai pro buf_out ao inves do buf_op
     incq %rsi
 
 .Lcopia_argumento:
@@ -321,22 +314,14 @@ preparar_chamada:
     jmp .Lcopia_argumento
 
 .Lcopia_op:
-# x + 5
-# 5 + x
-#percorre ate achar o operador
-#salvar no operador
-#o q ta antes do operador vai pra buf_op1
-# buf_op2
+    movb $0, (%rcx) 
 
-    movb $0, (%rcx) #coloco um \0 no final da funcao
-
-    movb (%rdi), %r9b
+    movb (%rdi), %r9b #guarda a letra do param pra substituir depois
     incq %rdi
 
     movq $buf_op1, %rcx
 
 .Lparse_op1:
-
     movb (%rdi), %al
 
     cmpb $0, %al
@@ -379,7 +364,7 @@ preparar_chamada:
     jmp .Lparse_op1
 
 .Lsubstitui_op1:
-    movq $buf_out, %r10
+    movq $buf_out, %r10 #substitui a letra do param pelo arg salvo em buf_out
 
 .Lloop_subst_op1:
     movb (%r10), %al
@@ -413,7 +398,6 @@ preparar_chamada:
     jmp .Lparse_op2
     
 .Lachou_operador:
-
     movb $0, (%rcx)
 
     movb %al, operador(%rip)
@@ -422,7 +406,6 @@ preparar_chamada:
     movq $buf_op2, %rcx 
 
 .Lparse_op2:
-
     movb (%rdi), %al
 
     cmpb $0, %al
@@ -440,17 +423,8 @@ preparar_chamada:
 
 .Lexpr_mista:
     # a + f(10)
-    #rdx pro comeco
-    #rsi pro operador
-    #copiar de rdx ate rsi pra buf 1 e coloca \o
-    #salva %rsi em operador
-
-    # Passo 1: copiar o que vem ANTES do operador pra buf_op1
-    # destino = buf_op1
-    # origem = %rdx
-    # copia byte a byte enquanto %rdx != %rsi
-    # coloca \0
     movq $buf_op1, %rcx
+
 .Lloop_mista_op1:
     movb (%rdx), %al
 
@@ -492,51 +466,48 @@ preparar_chamada:
 
     movq $buf_op2, %rsi
     movb 1(%rsi), %al
-    cmpb $'(', %al
+    cmpb $'(', %al #checa se o op2 é uma função
     je .Lmista_com_funcao
     jmp .Lfinal_salva
 
 .Lmista_com_funcao:
-    # 1. Resolver buf_op1 (variável 'a' -> '8')
     movq $buf_op1, %rsi
     call resolver_operando
 
-    # 2. Converter pra float: ler_operando + converter_para_float → %xmm0
     movq $buf_op1, %rsi
     call ler_operando
     call converter_para_float
 
-    # 3. Salvar na pilha (o valor do lado esquerdo)
     subq $8, %rsp
-    movsd %xmm0, (%rsp)
+    movsd %xmm0, (%rsp) #salva do lado esquerdo da pilha
     
-    # 4. Salvar o operador na pilha
     movzbq operador(%rip), %rax
     pushq %rax
     
-    # 5. Copiar buf_op2 ("f(10)") pro buf_entrada
     movq $buf_op2, %rsi
     movq $buf_entrada, %rcx
 
 .Lcopia_pra_entrada:
     movb (%rsi), %al
     movb %al, (%rcx)
+
     incq %rsi
     incq %rcx
+
     cmpb $0, %al
     jne .Lcopia_pra_entrada
-    # 6. Chamar preparar_chamada  p preenche buffers com f(10
+
     call preparar_chamada
-    # 7. Chamar executar_operacao p resultado em %xmm0
     call executar_operacao
-    # 8. Salvar %xmm0 (lado direito)
+
     movapd %xmm0, %xmm1
-    # 9. Recuperar operador na pilha
+
     popq %rax
 
     movsd (%rsp), %xmm0
     addq $8, %rsp
-    # 10. Fazer a conta
+    
+    #nesse trabalho, as operações mistas faz as 4 operações básicas
     cmpb $'+', %al
     je .Lmista_soma
     cmpb $'-', %al
@@ -545,13 +516,13 @@ preparar_chamada:
     je .Lmista_mul
     cmpb $'/', %al
     je .Lmista_div
-    # 11. Colocar 2 em %rax e retornar
 
     jmp .Lmista_fim
 
 .Lmista_soma:
     addsd %xmm1, %xmm0
     jmp .Lmista_fim
+
 .Lmista_sub:
     subsd %xmm1, %xmm0
     jmp .Lmista_fim
@@ -563,8 +534,7 @@ preparar_chamada:
     jmp .Lmista_fim
 
 .Lmista_fim:
-    # 11. Sinalizar que já calculou
-    movq $2, %rax
+    movq $2, %rax #coloca o 2 porque foi calculado
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -582,15 +552,16 @@ preparar_chamada:
     popq %rbp
     ret
 
+#Verifica se o buffer começa com uma letra (uma variável)
+#Entrada: %rsi = endereço do buffer
+#sobrescreve o buffer com o valor que a variável armazena
 resolver_operando:
     pushq %rbp
     movq %rsp, %rbp
-    #carrega o primeiro byte de op
-    #compara se é >= 'a' e <='z'}
-    #se nao for letra, nao faz nada
-    #se for letra, calcula indice no vetor, copia o conteudo do slot por cima do buffer
-    movb (%rsi), %al #le o primeiro byte
 
+    movb (%rsi), %al
+
+    #compara se é >= 'a' e <='z'
     cmpb $'a', %al
     jl .Lfim_resolve
 
@@ -598,12 +569,12 @@ resolver_operando:
     jg .Lfim_resolve
 
     movzbq %al, %rax
-    subq $'a', %rax #achei a pos do vetor
+    subq $'a', %rax 
     imulq $20, %rax 
     addq $funcoes, %rax
     movq %rax, %rdi
     incq %rdi
-    movq %rsi, %rcx
+    movq %rsi, %rcx #sobrescreve
 
 .Lcopia_mem:
     movb (%rdi), %al
@@ -631,9 +602,9 @@ ler_operando:
 
     movq $0, %rax
     movq $0, %rcx
-    movq $0, %r8
-    movq $0, %r9
-    movq $0, %r10
+    movq $0, %r8 #contador de casas decimais
+    movq $0, %r9 #flag de já passou pelo decimal
+    movq $0, %r10 #flag de negativo
 
 .Ller_digito:
     movb (%rsi), %cl 
@@ -713,13 +684,14 @@ converter_para_float:
     cmpq $0, %r8
     jne .Lmultiplica_acc
     
-    divsd %xmm3, %xmm0
+    divsd %xmm3, %xmm0 #divide pelo acumulador para posicionar o ponto
 
 .Lconverte_fim:
     movq %rbp, %rsp
     popq %rbp
     ret
 
+#Imprime o resultado que saiu em %xmm0
 exibir_resultado:
     pushq %rbp
     movq  %rsp, %rbp
@@ -745,8 +717,8 @@ exibir_resultado:
     movsd %xmm1, %xmm0
 
 .Lnum_positivo:
-    cvttsd2si %xmm0, %rax 
-    movq %rax, %r12
+    cvttsd2si %xmm0, %rax  #parte inteira do resultado
+    movq %rax, %r12 #guarda para calcular a parte decimal
 
 .print_numero:
     movq $10, %r8

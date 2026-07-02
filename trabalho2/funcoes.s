@@ -1,5 +1,5 @@
 .section .rodata
-#verificar
+
 msg_erro_op: .string "Erro: operador invalido\n"
 msg_erro_op_l = . - msg_erro_op
 
@@ -24,7 +24,7 @@ msg_erro_ord_l = . - msg_erro_ord
 msg_nl:     .string "\n"
 msg_nl_l = . - msg_nl
 
-.align 8 #o align garante que essas constantes estejam alinhadas em múltiplos de 8, não muda nada no código em si, mas otimiza o acesso a memoria
+.align 8
 const_dez_op: .double 10.0 
 .align 8 
 const_um_op: .double 1.0
@@ -38,6 +38,9 @@ const_arred: .double 0.99
 
 .global executar_operacao
 
+#Executa a operação conforme o caractere do operador
+#Entradas: buf_op1, buf_op2 e operador
+#Saídas: %xmmo = resultado, %rax = 0(Ok) ou 1(Erro)
 executar_operacao:
     pushq %rbp
     movq  %rsp, %rbp
@@ -126,7 +129,8 @@ executar_operacao:
     popq %rbp
     ret
     
-
+#Realiza a soma do número de entrada em buf_op1 pelo buf_op2
+#Retorna o resultado em %xmm0
 op_soma:
     pushq %rbp
     movq  %rsp, %rbp
@@ -147,6 +151,8 @@ op_soma:
     popq %rbp
     ret  
 
+#Realiza a subtração do número de entrada em buf_op1 pelo buf_op2 
+#Retorna o resultado em %xmm0
 op_sub:
     push %rbp
     movq %rsp, %rbp
@@ -167,6 +173,8 @@ op_sub:
     popq %rbp
     ret
 
+#Realiza a multiplicação do número de entrada em buf_op1 pelo buf_op2
+#Retora o resultado em %xxm0
 op_mul:
     push %rbp
     movq %rsp, %rbp
@@ -187,6 +195,8 @@ op_mul:
     popq %rbp
     ret
 
+#Realiza a divisão do número de entrada em buf_op1 pelo buf_op2
+#Retorna o resultado em %xmm0
 op_div:
     push %rbp
     movq %rsp, %rbp
@@ -220,6 +230,8 @@ op_div:
     popq %rbp
     ret
 
+#Realiza a potenciação do número de entrada em buf_op1 pelo buf_op2 
+#Retorna o resultado em %xmm0
 op_pow:
     push %rbp
     movq %rsp, %rbp
@@ -252,9 +264,10 @@ op_pow:
     popq %rbp
     ret
 
+#Executa a operação de combinação n! / (r! * (n-r)!)
+#Entradas: buf_op1 = n e buf_op2 = r
+#Saídas: %xmm0 = resultado, %rax = 0(Ok) ou 1(Erro)
 op_comb:
-    #n! / r! * (n - r)!
-
     push %rbp
     movq %rsp, %rbp
     
@@ -270,8 +283,8 @@ op_comb:
     movq %rax, %rbx #leu n
 
     cvtsi2sd %rbx, %xmm1
-    ucomisd %xmm1, %xmm0
-    jne .Lerro_fat_comb
+    ucomisd %xmm1, %xmm0 # compara int com float pra checar se era inteiro
+    jne .Lerro_fat_comb # se diferente, tinha parte decimal
 
     cmpq $0, %rbx
     jl .Lerro_fat_comb
@@ -348,6 +361,9 @@ op_comb:
     popq %rbp
     ret
 
+#Executa a operação de arranjo n! / (n-r)!
+#Entradas: buf_op1 = n e buf_op2 = r
+#Saídas: %xmm0 = resultado, %rax = 0(Ok) ou 1(Erro)
 op_arr:
     pushq %rbp
     movq %rsp, %rbp
@@ -426,6 +442,9 @@ op_arr:
     popq %rbp
     ret
 
+#Executa a operação de fatorial n!
+#Entrada: buf_op1 = 
+#Saídas: %xmm0 = resultado, %rax = 0(Ok) ou 1(Erro)
 op_fat:
     pushq %rbp
     movq %rsp, %rbp
@@ -462,6 +481,9 @@ op_fat:
     popq %rbp
     ret
 
+#Executa a operação de inverso 1/x
+#Entrada: buf_op1 = x
+#Saídas: %xmmo = resultado, %rax = 0(Ok) ou 1(Erro)
 op_inv:
     pushq %rbp
     movq %rsp, %rbp
@@ -492,6 +514,9 @@ op_inv:
     popq %rbp
     ret
 
+#Executa a operação de raiz quadrada
+#Entrada: buf_op1
+#Saídas: %xmm0 = resultado, %rax = 0(Ok) ou 1(Erro)
 op_sqrt:
     push %rbp
     movq %rsp, %rbp
@@ -520,8 +545,10 @@ op_sqrt:
     popq %rbp
     ret
 
-op_log:
-#propriedade dos logaritmos: log_{base} = ln_{num}/ln_{base} 
+#Executa a operação de logaritmo log_base(x) = ln(x)/ln(base)
+#Entrada: buf_op1 = x e buf_op2 = base
+#Saídas: %xmm0 = resultado, %rax = 0(Ok) ou 1(Erro)
+op_log: 
     push %rbp
     movq %rsp, %rbp
 
@@ -536,7 +563,7 @@ op_log:
     ucomisd const_um_op(%rip), %xmm0
     je .Llog_erro
 
-    call log #essa funcao devolve o ln
+    call log
     movsd %xmm0, %xmm1
 
     movq $buf_op1, %rsi
@@ -564,7 +591,9 @@ op_log:
     popq %rbp
     ret
 
-
+#Executa a operação de próximo primo >= x
+#Entrada: buf_op1 = x
+#Saídas: %xmmo = primo encontrado, %rax = 0(Ok) ou 1(Erro)
 op_primo:
     push %rbp
     movq %rsp, %rbp
@@ -620,6 +649,9 @@ op_primo:
     popq %rbp
     ret
 
+#Calcula o fatorial n! iterativamente
+#Entrada: %xmm0 = n
+#Saída: %xmm0 = n!
 calcular_fatorial:
     cvttsd2si %xmm0, %rax
     movq %rax, %rcx
@@ -640,6 +672,9 @@ calcular_fatorial:
 .Lfim_fatorial:
     ret
 
+#Calcula logaritmo usando FPU x87
+#Entrada = %xmm0 = x
+#Saída = %xmm0 = ln(x)
 log:
     subq $8, %rsp
     movsd %xmm0, (%rsp)
