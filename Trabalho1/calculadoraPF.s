@@ -162,9 +162,13 @@ loop_principal:
     # Executar a operação 
     call executar_operacao
 
+    cmpq $1, %rax
+    je .Lpular_impressao
+
     # Exibir resultado
     call exibir_resultado
 
+.Lpular_impressao:
     # Perguntar se continua
     movq $msg_cont, %rsi
     movq $msg_cont_l, %rdx
@@ -180,6 +184,7 @@ loop_principal:
     cmpb $'s', %al
     je .Lloop
 
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -245,10 +250,13 @@ ler_operando:
     negq %rax
 
 .Lfim_ret:
+    movq %rbp, %rsp
     popq %rbp
     ret
 
 converter_para_float:
+    pushq %rbp
+    movq %rsp, %rbp
 
     cvtsi2sd %rax, %xmm0
     movsd const_um(%rip), %xmm3
@@ -268,11 +276,16 @@ converter_para_float:
     divsd %xmm3, %xmm0
 
 .Lconverte_fim:
+    movq %rbp, %rsp
+    popq %rbp
     ret
 
 exibir_resultado:
     pushq %rbp
     movq  %rsp, %rbp
+
+    pushq %r12
+    pushq %r13
 
     pushq %rax
     movq $msg_res, %rsi
@@ -351,6 +364,10 @@ exibir_resultado:
     movq $msg_nl_l, %rdx
     call imprimir_string
 
+    popq %r13
+    popq %r12
+
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -463,7 +480,10 @@ executar_operacao:
     movq $msg_erro_div_l, %rdx
     call imprimir_string
 
-    jmp .Lloop
+    movq $1, %rax
+    movq %rbp, %rsp 
+    popq %rbp
+    ret
 
 .Lop_pow:
     movq $buf_op1, %rsi
@@ -508,10 +528,10 @@ executar_operacao:
 
     cvtsi2sd %rbx, %xmm1
     ucomisd %xmm1, %xmm0
-    jne .Lerro_fat
+    jne .Lcomb_erro_fat
 
     cmpq $0, %rbx
-    jl .Lerro_fat
+    jl .Lcomb_erro_fat
 
     movq $buf_op2, %rsi
     call ler_operando
@@ -521,13 +541,13 @@ executar_operacao:
 
     cvtsi2sd %r12, %xmm1
     ucomisd %xmm1, %xmm0
-    jne .Lerro_fat
+    jne .Lcomb_erro_fat
 
     cmpq $0, %r12
-    jl .Lerro_fat
+    jl .Lcomb_erro_fat
 
     cmpq %r12, %rbx
-    jl .Lerro_num_menor
+    jl .Lcomb_erro_menor
 
     movq %rbx, %r13
     subq %r12, %r13
@@ -563,6 +583,18 @@ executar_operacao:
     cvtsi2sd %rax, %xmm0
     jmp .Lop_fim
 
+.Lcomb_erro_fat:
+    popq %r13
+    popq %r12
+    popq %rbx 
+    jmp .Lerro_fat
+
+.Lcomb_erro_menor:
+    popq %r13
+    popq %r12
+    popq %rbx
+    jmp .Lerro_num_menor
+
 .Lop_arr:
     pushq %rbx
     pushq %r12
@@ -575,10 +607,10 @@ executar_operacao:
 
     cvtsi2sd %rbx, %xmm1 
     ucomisd %xmm1, %xmm0
-    jne .Lerro_fat
+    jne .Larr_erro_fat
 
     cmpq $0, %rbx
-    jl .Lerro_fat
+    jl .Larr_erro_fat
 
     movq $buf_op2, %rsi
     call ler_operando
@@ -587,13 +619,13 @@ executar_operacao:
 
     cvtsi2sd %rax, %xmm1
     ucomisd %xmm1, %xmm0
-    jne .Lerro_fat
+    jne .Larr_erro_fat
 
     cmpq $0, %rax
-    jl .Lerro_fat
+    jl .Larr_erro_fat
 
     cmpq %rax, %rbx
-    jl .Lerro_num_menor
+    jl .Larr_erro_menor
 
     movq %rbx, %r12
     subq %rax, %r12 
@@ -620,12 +652,25 @@ executar_operacao:
     cvtsi2sd %rax, %xmm0
     jmp .Lop_fim
 
+.Larr_erro_fat:
+    popq %r12
+    popq %rbx 
+    jmp .Lerro_fat
+
+.Larr_erro_menor:
+    popq %r12
+    popq %rbx
+    jmp .Lerro_num_menor
+
 .Lerro_num_menor:
     movq $msg_erro_ord, %rsi
     movq $msg_erro_ord_l, %rdx
     call imprimir_string
 
-    jmp .Lloop
+    movq $1, %rax 
+    movq %rbp, %rsp
+    popq %rbp
+    ret
 
 .Lop_fat:
     movq $buf_op1, %rsi
@@ -653,7 +698,10 @@ executar_operacao:
     movq $msg_erro_neg_l, %rdx 
     call imprimir_string
 
-    jmp .Lloop
+    movq $1, %rax  
+    movq %rbp, %rsp
+    popq %rbp
+    ret
 
 .Lop_inv:
     movq $buf_op1, %rsi
@@ -675,7 +723,10 @@ executar_operacao:
     movq $msg_erro_inv_l, %rdx
     call imprimir_string
 
-    jmp .Lloop
+    movq $1, %rax  
+    movq %rbp, %rsp
+    popq %rbp
+    ret
 
 .Lop_sqrt:
     movq $buf_op1, %rsi
@@ -695,7 +746,10 @@ executar_operacao:
     movq $msg_erro_sqrt_l, %rdx
     call imprimir_string
 
-    jmp .Lloop
+    movq $1, %rax  
+    movq %rbp, %rsp
+    popq %rbp
+    ret
 
 .Lop_log:
 #propriedade dos logaritmos: log_{base} = ln_{num}/ln_{base} 
@@ -731,7 +785,10 @@ executar_operacao:
     movq $msg_erro_log_l, %rdx
     call imprimir_string
 
-    jmp .Lloop
+    movq $1, %rax  
+    movq %rbp, %rsp
+    popq %rbp
+    ret
 
 .Lop_primo:
  #Primeiro, vc vê se é 1 ou 2
@@ -804,6 +861,8 @@ executar_operacao:
     cvtsi2sd %rax, %xmm0
 
 .Lop_fim:
+    movq $0, %rax
+    movq %rbp, %rsp
     popq %rbp
     ret
 

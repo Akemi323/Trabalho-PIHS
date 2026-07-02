@@ -117,11 +117,12 @@ executar_operacao:
 
 .Lteste_invalido:
     movq $1, %rax #jogar na main que se retornar zero ele roda o loop de novo
+    movq %rbp, %rsp
     popq %rbp
     ret
 
 .Lfim:
-    movq $0, %rax
+    movq %rbp, %rsp
     popq %rbp
     ret
     
@@ -141,6 +142,8 @@ op_soma:
 
     addsd %xmm1, %xmm0
 
+    movq $0, %rax
+    movq %rbp, %rsp
     popq %rbp
     ret  
 
@@ -159,6 +162,8 @@ op_sub:
 
     subsd %xmm1, %xmm0
 
+    movq $0, %rax
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -177,6 +182,8 @@ op_mul:
 
     mulsd %xmm1, %xmm0
 
+    movq $0, %rax
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -206,8 +213,10 @@ op_div:
     movq $msg_erro_div, %rsi
     movq $msg_erro_div_l, %rdx
     call imprimir_string
+    movq $1, %rax
 
 .Lfim_div:
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -239,6 +248,7 @@ op_pow:
     jne .Lloop_pow
 
 .Lfim_da_potencia:
+    movq $0, %rax
     popq %rbp
     ret
 
@@ -247,11 +257,12 @@ op_comb:
 
     push %rbp
     movq %rsp, %rbp
-
+    
+    pushq %rax
     pushq %rbx
     pushq %r12
     pushq %r13
-
+    
     movq $buf_op1, %rsi
     call ler_operando
     call converter_para_float
@@ -329,9 +340,11 @@ op_comb:
     movq $1, %rax
 
 .Lfim_comb:
+    addq $8, %rsp
     popq %r13
     popq %r12
     popq %rbx
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -388,9 +401,6 @@ op_arr:
     cqo
     idivq %r12
 
-    popq %r12
-    popq %rbx
-
     cvtsi2sd %rax, %xmm0
     movq $0, %rax
     jmp .Lfim_arr
@@ -412,6 +422,7 @@ op_arr:
 .Lfim_arr:
     popq %r12
     popq %rbx
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -437,14 +448,17 @@ op_fat:
     cvttsd2si %xmm0, %rax
 
     cvtsi2sd %rax, %xmm0
+    movq $0, %rax
     jmp .Lfim_fat
     
 .Lerro_fat:
     movq $msg_erro_neg, %rsi
     movq $msg_erro_neg_l, %rdx 
     call imprimir_string
+    movq $1, %rax
 
 .Lfim_fat:
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -464,14 +478,17 @@ op_inv:
     
     divsd %xmm1, %xmm0
 
+    movq $0, %rax
     jmp .Lfim_inv
 
 .Lerro_inv:
     movq $msg_erro_inv, %rsi
     movq $msg_erro_inv_l, %rdx
     call imprimir_string
+    movq $1, %rax
 
 .Lfim_inv:
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -489,14 +506,17 @@ op_sqrt:
     
     sqrtsd %xmm0, %xmm0
 
+    movq $0, %rax
     jmp .Lfim_sqrt
 
 .Lsqrt_erro:
     movq $msg_erro_sqrt, %rsi
     movq $msg_erro_sqrt_l, %rdx
     call imprimir_string
+    movq $1, %rax
 
 .Lfim_sqrt:
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -530,14 +550,17 @@ op_log:
     call log
     
     divsd %xmm1, %xmm0
+    movq $0, %rax
     jmp .Lfim_log
 
 .Llog_erro:
     movq $msg_erro_log, %rsi
     movq $msg_erro_log_l, %rdx
     call imprimir_string
+    movq $1, %rax
 
 .Lfim_log:
+    movq %rbp, %rsp
     popq %rbp
     ret
 
@@ -592,6 +615,8 @@ op_primo:
     movq %rcx, %rax
     cvtsi2sd %rax, %xmm0
 
+    movq $0, %rax
+    movq %rbp, %rsp
     popq %rbp
     ret
 
